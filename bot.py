@@ -71,7 +71,7 @@ async def update_shame_board(message):
             # Build embed
             embed = discord.Embed(description=message.content, color=discord.Color.dark_red())
             embed.set_author(name=message.author.name, icon_url=message.author.avatar.url if message.author.avatar else None)
-            embed.set_footer(text=f"{SHAME_EMOJI} {shame_count}")
+            embed.set_footer(text=f"{SHAME_EMOJI}")
             
             # Add timestamp and jump URL
             embed.timestamp = message.created_at
