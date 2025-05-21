@@ -6,7 +6,7 @@ from discord.ui import View, Button
 
 TOKEN = os.getenv('DISCORD_TOKEN')
 SHAME_EMOJI = '💔'
-SHAME_THRESHOLD = 1
+SHAME_THRESHOLD = 2
 SHAME_CHANNEL_NAME = 'shame-board'
 
 intents = discord.Intents.default()
@@ -19,7 +19,7 @@ intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 lock = asyncio.Lock()
-posted_messages = {}  # message_id: (shame_board_message_id, shame_board_count_message_id)
+posted_messages = {}  # message_id: (embed_message_id, count_message_id)
 
 
 @bot.event
@@ -61,10 +61,10 @@ async def update_shame_board(message):
             # If message no longer meets threshold but was previously posted, delete it
             if shame_count < SHAME_THRESHOLD and message.id in posted_messages:
                 try:
-                    shame_msg_id, count_msg_id = posted_messages[message.id]
+                    embed_msg_id, count_msg_id = posted_messages[message.id]
                     
-                    shame_msg = await shame_channel.fetch_message(shame_msg_id)
-                    await shame_msg.delete()
+                    embed_msg = await shame_channel.fetch_message(embed_msg_id)
+                    await embed_msg.delete()
                     
                     count_msg = await shame_channel.fetch_message(count_msg_id)
                     await count_msg.delete()
@@ -118,11 +118,11 @@ async def update_shame_board(message):
 
             # Update existing shame post if already posted
             if message.id in posted_messages:
-                shame_msg_id, count_msg_id = posted_messages[message.id]
+                embed_msg_id, count_msg_id = posted_messages[message.id]
                 try:
                     # Update the embed message
-                    shame_msg = await shame_channel.fetch_message(shame_msg_id)
-                    await shame_msg.edit(embed=embed, view=view)
+                    embed_msg = await shame_channel.fetch_message(embed_msg_id)
+                    await embed_msg.edit(embed=embed, view=view)
                     
                     # Update the count message
                     count_msg = await shame_channel.fetch_message(count_msg_id)
@@ -130,17 +130,17 @@ async def update_shame_board(message):
                     
                 except discord.NotFound:
                     print("Shame message was deleted. Reposting.")
-                    # Post the count message first
+                    # Post the embed first
+                    embed_msg = await shame_channel.send(embed=embed, view=view)
+                    # Then post the count message
                     count_msg = await shame_channel.send(content=count_message_content)
-                    # Then post the embed
-                    new_msg = await shame_channel.send(embed=embed, view=view)
-                    posted_messages[message.id] = (new_msg.id, count_msg.id)
+                    posted_messages[message.id] = (embed_msg.id, count_msg.id)
             else:
-                # Post the count message first
+                # Post the embed first
+                embed_msg = await shame_channel.send(embed=embed, view=view)
+                # Then post the count message
                 count_msg = await shame_channel.send(content=count_message_content)
-                # Then post the embed
-                shame_msg = await shame_channel.send(embed=embed, view=view)
-                posted_messages[message.id] = (shame_msg.id, count_msg.id)
+                posted_messages[message.id] = (embed_msg.id, count_msg.id)
 
     except Exception as e:
         print(f"Error in update_shame_board: {e}")
