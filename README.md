@@ -17,7 +17,7 @@ There are many different ways to deploy this as a fully-working bot. The way the
 ### How to invite your bot
 To invite your bot, use this link: https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot&permissions=268446736
 
-replace YOUR_CLIENT_ID with the client ID of your bot, found in OAuth2 -> general and copy the application id
+replace YOUR_CLIENT_ID with the client ID of your bot, found in OAuth2 -> general and copy the client id
 
 **now it just needs deployed!**
 ### Steps for Render
