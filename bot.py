@@ -6,7 +6,7 @@ from discord.ui import View, Button
 
 TOKEN = os.getenv('DISCORD_TOKEN')
 SHAME_EMOJI = '💔'
-SHAME_THRESHOLD = 2
+SHAME_THRESHOLD = 1
 SHAME_CHANNEL_NAME = 'shame-board'
 
 intents = discord.Intents.default()
