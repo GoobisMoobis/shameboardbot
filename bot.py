@@ -2,10 +2,11 @@ import discord
 from discord.ext import commands
 import asyncio
 import os
+from discord.ui import View, Button
 
 TOKEN = os.getenv('DISCORD_TOKEN')
 SHAME_EMOJI = '💔'
-SHAME_THRESHOLD = 2
+SHAME_THRESHOLD = 1
 SHAME_CHANNEL_NAME = 'shame-board'
 
 intents = discord.Intents.default()
@@ -18,7 +19,7 @@ intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 lock = asyncio.Lock()
-posted_messages = {}  # message_id: shame_board_message_id
+posted_messages = {}  # message_id: (shame_board_message_id, shame_board_count_message_id)
 
 
 @bot.event
@@ -60,24 +61,31 @@ async def update_shame_board(message):
             # If message no longer meets threshold but was previously posted, delete it
             if shame_count < SHAME_THRESHOLD and message.id in posted_messages:
                 try:
-                    shame_msg_id = posted_messages[message.id]
+                    shame_msg_id, count_msg_id = posted_messages[message.id]
+                    
                     shame_msg = await shame_channel.fetch_message(shame_msg_id)
                     await shame_msg.delete()
+                    
+                    count_msg = await shame_channel.fetch_message(count_msg_id)
+                    await count_msg.delete()
+                    
                     del posted_messages[message.id]
                 except (discord.NotFound, KeyError):
                     pass
                 return
 
-            # Build embed
-            embed = discord.Embed(description=message.content, color=discord.Color.dark_red())
-            embed.set_author(name=message.author.name, icon_url=message.author.avatar.url if message.author.avatar else None)
-            embed.set_footer(text=f"{SHAME_EMOJI}")
-            
-            # Add timestamp and jump URL
-            embed.timestamp = message.created_at
-            embed.add_field(name="Jump to Message", value=f"[Click Here]({message.jump_url})", inline=False)
+            # Format the count message
+            count_message_content = f"# {SHAME_EMOJI} {shame_count}"
 
-            # If it's a reply, try to include the original message
+            # Create the "Go to message" button
+            view = View()
+            jump_button = Button(style=discord.ButtonStyle.link, label="Go to Message", url=message.jump_url)
+            view.add_item(jump_button)
+
+            # Build the embed content
+            embed_description = ""
+            
+            # If it's a reply, include the original message as a blockquote
             if message.reference and isinstance(message.reference, discord.MessageReference):
                 try:
                     # Fetch the referenced message if not already resolved
@@ -87,36 +95,52 @@ async def update_shame_board(message):
                         referenced = message.reference.resolved
                         
                     if isinstance(referenced, discord.Message):
-                        ref_content = referenced.content[:1024] or "*[No text]*"
+                        ref_content = referenced.content or "*[No text]*"
                         # Include attachments if any
                         if referenced.attachments:
                             ref_content += "\n*[Has attachments]*"
-                            
-                        embed.add_field(
-                            name=f"In reply to {referenced.author.name}",
-                            value=ref_content,
-                            inline=False
-                        )
+                        
+                        # Format as blockquote and add to description
+                        blockquote_lines = [f"> {line}" for line in ref_content.split('\n')]
+                        embed_description += f"> **{referenced.author.name} said:**\n"
+                        embed_description += "\n".join(blockquote_lines)
+                        embed_description += "\n\n"
                 except (discord.NotFound, discord.HTTPException):
-                    embed.add_field(
-                        name="In reply to",
-                        value="*[Original message unavailable]*",
-                        inline=False
-                    )
+                    embed_description += "> *[Original message unavailable]*\n\n"
+            
+            # Add the shamed message content
+            embed_description += message.content
+
+            # Build the embed
+            embed = discord.Embed(description=embed_description, color=discord.Color.dark_red())
+            embed.set_author(name=message.author.name, icon_url=message.author.avatar.url if message.author.avatar else None)
+            embed.timestamp = message.created_at
 
             # Update existing shame post if already posted
             if message.id in posted_messages:
-                shame_msg_id = posted_messages[message.id]
+                shame_msg_id, count_msg_id = posted_messages[message.id]
                 try:
+                    # Update the embed message
                     shame_msg = await shame_channel.fetch_message(shame_msg_id)
-                    await shame_msg.edit(embed=embed)
+                    await shame_msg.edit(embed=embed, view=view)
+                    
+                    # Update the count message
+                    count_msg = await shame_channel.fetch_message(count_msg_id)
+                    await count_msg.edit(content=count_message_content)
+                    
                 except discord.NotFound:
                     print("Shame message was deleted. Reposting.")
-                    new_msg = await shame_channel.send(embed=embed)
-                    posted_messages[message.id] = new_msg.id
+                    # Post the count message first
+                    count_msg = await shame_channel.send(content=count_message_content)
+                    # Then post the embed
+                    new_msg = await shame_channel.send(embed=embed, view=view)
+                    posted_messages[message.id] = (new_msg.id, count_msg.id)
             else:
-                shame_msg = await shame_channel.send(embed=embed)
-                posted_messages[message.id] = shame_msg.id
+                # Post the count message first
+                count_msg = await shame_channel.send(content=count_message_content)
+                # Then post the embed
+                shame_msg = await shame_channel.send(embed=embed, view=view)
+                posted_messages[message.id] = (shame_msg.id, count_msg.id)
 
     except Exception as e:
         print(f"Error in update_shame_board: {e}")
