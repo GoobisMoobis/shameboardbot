@@ -1,5 +1,5 @@
 services:
-  - type: web
+  - type: worker
     name: discord-shame-bot
     env: python
     plan: free
