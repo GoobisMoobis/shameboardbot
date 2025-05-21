@@ -17,6 +17,7 @@ replace YOUR_CLIENT_ID with the client ID of your bot, found in OAuth2 -> genera
 **now it just needs deployed!**
 ### Steps for Render
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/YOUR_USERNAME/YOUR_REPO_NAME)
+
 ^ If this doesnt work, try the steps below
 **Step 1:** fork this repository
 **Step 2:** go to render and make an account
